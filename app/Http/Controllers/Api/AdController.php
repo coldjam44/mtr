@@ -6,7 +6,7 @@ use App\Models\Ad;
 use App\Models\Userauth;
 use App\Models\Category;
 use App\Models\Country;
-use App\Models\city;
+use App\Models\City;
 use App\Models\CategoryFieldValue;
 use App\Models\Follower;
 use Intervention\Image\Facades\Image;

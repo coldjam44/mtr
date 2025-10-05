@@ -15,6 +15,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use App\Events\NewBidEvent;
 
 class AuctionController extends Controller
 {
@@ -456,6 +457,9 @@ class AuctionController extends Controller
             // تحديث سعر المزاد الحالي
             $auction->current_highest_bid = $bidAmount;
             $auction->save();
+
+            // إرسال حدث المزايدة الجديدة عبر Pusher
+            event(new NewBidEvent($auctionId, $bidAmount, $userId, auth()->user()->first_name . ' ' . auth()->user()->last_name));
             
             // عد المزايدات
             $totalBids = AuctionBid::where('auction_handler_id', $auction->id)->count();

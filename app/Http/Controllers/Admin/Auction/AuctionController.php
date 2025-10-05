@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin\Auction;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Country;
-use App\Models\city;
+use App\Models\City;
 use App\Models\CarModel;
 use App\Models\CategoryField;
 use App\Models\CategoryFieldValue;

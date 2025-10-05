@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Auction Detail — Mockup</title>
+  <style>
+    :root{--bg:#f6f7fb;--card:#fff;--muted:#6b7280;--accent:#0747a6;--danger:#e11d48}
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;color:#111;background:var(--bg)}
+    .container{max-width:1100px;margin:28px auto;padding:20px}
+    .breadcrumb{color:var(--muted);font-size:14px;margin-bottom:12px}
+  /* user bid banner */
+  .user-bid-banner{display:none;background:#fff1f2;border:1px solid #fecaca;color:#b91c1c;padding:14px;border-radius:8px;margin-bottom:14px;position:relative}
+  .user-bid-banner .msg{font-weight:700}
+  .user-bid-banner .actions{position:absolute;right:12px;top:10px}
+  .user-bid-banner button{background:#b91c1c;color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer}
+  .user-bid-banner .close{position:absolute;right:8px;top:8px;border:0;background:transparent;color:#b91c1c;font-size:18px;cursor:pointer}
+
+    .main{display:flex;gap:28px;align-items:flex-start}
+
+    /* left: gallery & gallery thumbnails */
+    .gallery{flex:1}
+    .hero{width:100%;height:430px;border-radius:8px;overflow:hidden;background:#ddd;display:flex;align-items:center;justify-content:center}
+    .hero img{width:100%;height:100%;object-fit:cover}
+    .thumb-row{display:flex;gap:8px;margin-top:12px}
+    .thumb{width:80px;height:60px;border-radius:6px;overflow:hidden;border:2px solid transparent;cursor:pointer}
+    .thumb img{width:100%;height:100%;object-fit:cover}
+    .thumb.active{border-color:#e6eefc}
+
+  /* bid activity log */
+  .bid-log{margin-top:12px;background:#fff;border-radius:8px;padding:10px;border:1px solid #e9eef6;box-shadow:0 2px 6px rgba(12,14,23,0.03)}
+  .bid-log .log-header{font-weight:700;margin-bottom:8px;font-size:14px}
+  .bid-log .log-entries{max-height:140px;overflow:auto;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', monospace;font-size:13px;color:#111}
+  .bid-log .entry{padding:6px;border-bottom:1px solid #f1f5f9}
+  .bid-log .entry.error{color:#b91c1c}
+  .bid-log .entry.success{color:#166534}
+  .bid-log .entry.info{color:#0f172a}
+
+    /* right: bid card */
+    .card{width:340px;background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(12,14,23,0.06)}
+    .lot{font-size:12px;color:var(--muted);background:#f3f6fb;padding:6px 8px;border-radius:8px;display:inline-block}
+    .title{font-size:18px;font-weight:700;margin:12px 0}
+    .meta{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:13px}
+    .countdown{color:#d02525;font-weight:700}
+
+    .price-row{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+    .price-label{font-size:13px;color:var(--muted)}
+    .price{font-size:22px;color:var(--accent);font-weight:800}
+    .increment{font-size:12px;color:var(--muted)}
+
+    .bid-control{margin-top:14px;display:flex;gap:8px;align-items:center}
+    .qty{display:flex;align-items:center;border-radius:8px;border:1px solid #e6e9ef;padding:6px;background:#fff}
+    .qty button{border:0;background:transparent;padding:6px;cursor:pointer;font-size:18px}
+    .qty input{width:100px;border:0;text-align:center;font-weight:700}
+    .checkbox{margin-top:10px;color:var(--muted);font-size:13px}
+    .bid-btn{display:block;width:100%;margin-top:12px;padding:10px;border-radius:8px;background:var(--accent);color:#fff;border:0;cursor:pointer;font-weight:700}
+
+    /* overview & details */
+    .section{margin-top:36px;background:transparent}
+    .overview{display:flex;gap:24px}
+    .overview-left{flex:1}
+    .overview-right{width:300px}
+    .overview .cardspec{display:flex;gap:12px;align-items:center;background:#fff;padding:12px;border-radius:10px;margin-bottom:12px;box-shadow:0 2px 8px rgba(12,14,23,0.04)}
+
+    .details-table{width:100%;border-collapse:collapse;margin-top:18px}
+    .details-table td{padding:12px 8px;border-bottom:1px solid #eef0f4}
+    .details-table td:first-child{color:var(--muted);width:240px}
+
+    /* map */
+    .map{margin-top:36px}
+    .map iframe{width:100%;height:260px;border-radius:12px;border:0}
+
+    /* responsive */
+    @media (max-width:960px){.main{flex-direction:column}.card{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="breadcrumb">Home &gt; Ongoing Auctions</div>
+    <div id="user-bid-banner" class="user-bid-banner" role="status" aria-live="polite">
+      <button class="close" id="user-bid-banner-close" aria-label="Close">×</button>
+      <div class="msg" id="user-bid-banner-msg">You've bid AED 95,000. You can place a higher bid anytime.</div>
+      <div class="actions">
+        <button id="user-bid-banner-higher">Place higher bid</button>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="gallery">
+        <div class="hero" id="hero">
+          <img id="hero-img" src="ads_copy/1743630540_ad-details-image-1.png" alt="main image">
+        </div>
+        <div class="thumb-row" id="thumbs">
+          <div class="thumb active"><img src="ads_copy/1743630540_ad-details-image-1.png" alt="t1"></div>
+          <div class="thumb"><img src="ads_copy/1743630540_ad-details-image-2.png" alt="t2"></div>
+          <div class="thumb"><img src="ads_copy/1743630540_ad-details-image-3.png" alt="t3"></div>
+          <div class="thumb"><img src="ads_copy/1743630540_ad-details-image-4.png" alt="t4"></div>
+        </div>
+
+        <!-- Bid activity log -->
+        <div class="bid-log" id="bid-log">
+          <div class="log-header">Bid activity</div>
+          <div class="log-entries" id="log-entries">
+            <!-- entries appended here -->
+          </div>
+        </div>
+
+        <div class="section overview">
+          <div class="overview-left">
+            <h3>Overview</h3>
+            <p style="color:var(--muted);line-height:1.6">SHARMAX RR 301ULTRA<br>2023<br>cc 249<br>Location: Sharjah, Al Rahmania<br>Posted at: 2025/06/30</p>
+
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px">
+              <div class="cardspec">Regional Specs<br><small style="color:var(--muted)">GCC Specs</small></div>
+              <div class="cardspec">Horse Power<br><small style="color:var(--muted)">300-400 HP</small></div>
+              <div class="cardspec">No. Of Cylinder<br><small style="color:var(--muted)">other</small></div>
+              <div class="cardspec">Mechanical Condition<br><small style="color:var(--muted)">other</small></div>
+              <div class="cardspec">Body Condition<br><small style="color:var(--muted)">No Accident</small></div>
+            </div>
+
+            <h3 style="margin-top:28px">All Details</h3>
+            <table class="details-table">
+              <tr><td>Make</td><td>Sharmax</td></tr>
+              <tr><td>Model</td><td>RR 301ULTRA</td></tr>
+              <tr><td>Model Year</td><td>2023</td></tr>
+              <tr><td>Kilometers</td><td>352 Km</td></tr>
+              <tr><td>Regional Specs</td><td>GCC Specs</td></tr>
+              <tr><td>Horse Power</td><td>300-400 HP</td></tr>
+              <tr><td>No. Of Cylinder</td><td>other</td></tr>
+              <tr><td>Mechanical Condition</td><td>other</td></tr>
+              <tr><td>Body Condition</td><td>No Accident</td></tr>
+              <tr><td>Bike License</td><td>Licensed</td></tr>
+              <tr><td>Warranty</td><td>Not apply</td></tr>
+            </table>
+          </div>
+
+          <div class="overview-right">
+            <!-- right side summary (mirrors the bid card for symmetry) -->
+          </div>
+        </div>
+
+        <div class="map">
+          <h4>Location/Map</h4>
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3620.8851858609715!2d55.38328631500016!3d25.30973198380161!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ef5f3c0d1a3c3b1%3A0x5f6a1a2ee3a89b9e!2sSharjah!5e0!3m2!1sen!2s!4v1620000000000!5m2!1sen!2s" allowfullscreen="" loading="lazy"></iframe>
+        </div>
+      </div>
+
+      <aside class="card">
+        <div class="lot">Lot #571623</div>
+        <div class="title">BMW X1 model 2023</div>
+  <!-- countdown: set data-end="YYYY-MM-DDTHH:MM:SSZ" on the element to use a fixed end time -->
+  <div class="meta"><span class="countdown" id="countdown" data-end="">⏱ 14:20:00</span> · <span style="color:var(--muted)">Bids: <span id="bids-count">14</span></span></div>
+
+        <div class="price-row">
+          <div>
+            <div class="price-label">Current Price</div>
+            <div class="price" id="current-price" data-value="70000">70,000 AED</div>
+          </div>
+          <div class="increment" id="min-increment" data-value="120">Min Increment:<br>120 AED</div>
+        </div>
+
+        <div class="bid-control">
+          <div class="qty">
+            <button id="dec">−</button>
+            <input id="bid-input" type="number" step="1" value="70120" />
+            <button id="inc">+</button>
+          </div>
+        </div>
+
+  <div class="checkbox"><input type="checkbox" id="agree"> I agree to terms and conditions & inspected the item</div>
+  <button class="bid-btn" id="bid-btn" data-auction-id="571623">Bid Now</button>
+  <div id="bid-message" style="margin-top:10px;font-size:13px;color:#b91c1c;display:none"></div>
+
+        <div style="margin-top:12px;font-size:13px;color:var(--muted)">Share: <span style="margin-left:6px">♥ ↗</span></div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // sample interactive behavior for thumbnails and qty
+    document.querySelectorAll('.thumb').forEach((t,i)=>{
+      t.addEventListener('click',()=>{
+        document.querySelectorAll('.thumb').forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+        const img = t.querySelector('img').src;
+        document.getElementById('hero-img').src = img;
+      })
+    })
+
+    const dec = document.getElementById('dec');
+    const inc = document.getElementById('inc');
+    const input = document.getElementById('bid-input');
+    dec.addEventListener('click',()=>{ input.value = Math.max(0, Number(input.value)-120); });
+    inc.addEventListener('click',()=>{ input.value = Number(input.value)+120; });
+    
+  // countdown timer — recomputes end time from element attribute each tick so loader updates take effect
+    (function(){
+      const el = document.getElementById('countdown');
+      if(!el) return;
+
+      // default fallback: 14h20m
+      const FALLBACK_SECONDS = (14*60 + 20) * 60;
+
+      // parse end time from element attributes
+      function computeEnd(){
+        const endAttr = el.getAttribute('data-end');
+        if(endAttr){
+          const parsed = Date.parse(endAttr);
+          if(!isNaN(parsed)) return new Date(parsed);
+        }
+        const rem = el.getAttribute('data-remaining-seconds');
+        if(rem && !isNaN(Number(rem))){
+          return new Date(Date.now() + Number(rem) * 1000);
+        }
+        return new Date(Date.now() + FALLBACK_SECONDS * 1000);
+      }
+
+      function fmt(diff){
+        if(diff <= 0) return 'Ended';
+        const s = Math.floor(diff/1000);
+        const days = Math.floor(s / 86400);
+        const hours = Math.floor((s % 86400) / 3600);
+        const mins = Math.floor((s % 3600) / 60);
+        const secs = s % 60;
+        if(days>0) return `${days}d ${hours}h ${String(mins).padStart(2,'0')}m`;
+        return `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      }
+
+      let iv = null;
+      function tick(){
+        const endTime = computeEnd();
+        const now = new Date();
+        const diff = endTime - now;
+        el.textContent = '⏱ ' + fmt(diff);
+        if(diff <= 0){
+          el.textContent = '⏱ Ended';
+          const btn = document.querySelector('.bid-btn');
+          if(btn) btn.disabled = true;
+          if(iv) { clearInterval(iv); iv = null; }
+        }
+      }
+
+      tick();
+      iv = setInterval(tick, 1000);
+    })();
+
+    /* Pusher real-time wiring */
+    (function(){
+      function getAuctionId(){
+        const params = new URLSearchParams(window.location.search);
+        return params.get('id') || params.get('auction_id') || document.getElementById('bid-btn')?.dataset.auctionId;
+      }
+      const auctionId = getAuctionId();
+      if(!auctionId) return;
+
+      const KEY = window.VITE_PUSHER_KEY || window.PUSHER_KEY || window.PUSHER_APP_KEY || null;
+      const CLUSTER = window.VITE_PUSHER_CLUSTER || window.PUSHER_APP_CLUSTER || 'ap2';
+      const FALLBACK_KEY = '5baf567dab56569882b8';
+
+      function initPusherInstance(pusherKey){
+        try{
+          if(!window.Pusher) return false;
+          const pusher = new Pusher(pusherKey, { cluster: CLUSTER, forceTLS: true });
+          const channelName = 'auction.' + auctionId;
+          const channel = pusher.subscribe(channelName);
+
+          channel.bind('new.bid', function(payload){
+            try{
+              const amount = payload.bid_amount ?? payload.bidAmount ?? payload.amount;
+              const aid = payload.auction_id ?? payload.auctionId ?? payload.auction_handler_id;
+              const bidder = payload.bidder_name ?? payload.user_name ?? 'Someone';
+              if(String(aid) !== String(auctionId)) return;
+              const priceEl = document.getElementById('current-price');
+              const bidsEl = document.getElementById('bids-count');
+              if(priceEl && typeof amount !== 'undefined'){ priceEl.dataset.value = amount; priceEl.textContent = Number(amount).toLocaleString() + ' AED'; }
+              if(bidsEl){ const n = Number(bidsEl.textContent||0) + 1; bidsEl.textContent = n; }
+              appendLog('info', `${bidder} placed a bid: ${amount} AED`);
+              const last = localStorage.getItem('lastUserBid');
+              if(last && Number(last) === Number(amount)){
+                const banner = document.getElementById('user-bid-banner');
+                if(banner){ banner.style.display='block'; document.getElementById('user-bid-banner-msg').textContent = `You\'ve bid AED ${Number(amount).toLocaleString()}. You can place a higher bid anytime.`; }
+              }
+            }catch(e){ console.error('pusher new.bid handler error', e); }
+          });
+
+          channel.bind('auction.update', function(payload){
+            try{
+              appendLog('info','Auction update: ' + (payload.message || JSON.stringify(payload)));
+              const countdown = document.getElementById('countdown');
+              if(countdown && payload.end_time){
+                try{ const parsed = Date.parse(payload.end_time); if(!isNaN(parsed)) countdown.setAttribute('data-end', new Date(parsed).toISOString()); }
+                catch(e){}
+              }
+            }catch(e){console.error(e)}
+          });
+
+          appendLog('info', 'Subscribed to real-time channel ' + channelName);
+          return true;
+        }catch(e){ console.error('initPusherInstance', e); return false; }
+      }
+
+      function loadPusherAndInit(){
+        if(window.Pusher){ return initPusherInstance(KEY || FALLBACK_KEY); }
+        const script = document.createElement('script');
+        script.src = 'https://js.pusher.com/7.2/pusher.min.js';
+        script.async = true;
+        script.onload = function(){ initPusherInstance(KEY || FALLBACK_KEY); };
+        script.onerror = function(){ appendLog('error','Failed to load Pusher client script'); };
+        document.head.appendChild(script);
+      }
+
+      loadPusherAndInit();
+    })();
+
+    // Bid button handler
+    (function(){
+      const bidBtn = document.getElementById('bid-btn');
+      const agree = document.getElementById('agree');
+      const bidInput = document.getElementById('bid-input');
+      const priceEl = document.getElementById('current-price');
+      const minEl = document.getElementById('min-increment');
+      const bidsCountEl = document.getElementById('bids-count');
+      const msgEl = document.getElementById('bid-message');
+      if(!bidBtn) return;
+
+      function showMsg(text, isError=true){
+        msgEl.style.display = 'block';
+        msgEl.style.color = isError ? '#b91c1c' : '#166534';
+        msgEl.textContent = text;
+        setTimeout(()=>{ msgEl.style.display = 'none'; }, 4000);
+      }
+
+      // append a log entry to the bid log box
+      function appendLog(type, text){
+        try{
+          const container = document.getElementById('log-entries');
+          if(!container) return;
+          const d = new Date();
+          const el = document.createElement('div');
+          el.className = 'entry ' + (type || 'info');
+          el.textContent = `[${d.toLocaleTimeString()}] ${text}`;
+          container.insertBefore(el, container.firstChild);
+          // keep scroll at top so newest shows on top
+        }catch(e){ console.error(e); }
+      }
+
+      async function placeBid(){
+        if(bidBtn.disabled) return;
+  if(!agree.checked){ showMsg('You must agree to terms before bidding.'); appendLog('error','Bid blocked — terms not agreed'); return; }
+        const auctionId = bidBtn.dataset.auctionId;
+        const amount = Number(bidInput.value || 0);
+        const current = Number(priceEl.dataset.value || 0);
+        const minInc = Number(minEl.dataset.value || 0);
+  if(isNaN(amount) || amount <= 0){ showMsg('Enter a valid bid amount.'); appendLog('error','Invalid bid amount: ' + bidInput.value); return; }
+  if(amount < current + minInc){ showMsg('Bid must be at least current price plus minimum increment.'); appendLog('error','Bid too low: ' + amount + ' (min ' + (current+minInc) + ')'); return; }
+
+        // show loading
+        const prevText = bidBtn.textContent;
+        bidBtn.textContent = 'Bidding...';
+        bidBtn.disabled = true;
+
+        try{
+          appendLog('info','Placing bid: ' + amount + ' AED');
+          const token = localStorage.getItem('testAuctionToken') || localStorage.getItem('token');
+          const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+          if(token) headers['Authorization'] = 'Bearer ' + token;
+          const res = await fetch(`/api/auctions/${auctionId}/bid`, {
+            method: 'POST', headers, body: JSON.stringify({ bid_amount: amount })
+          });
+
+          // read response text (safer if server returns non-JSON or an error page)
+          const resText = await res.text();
+          let data = null;
+          try{ data = resText ? JSON.parse(resText) : null; }catch(e){ data = null; }
+
+          if(!res.ok){
+            // prefer Laravel validation messages in data.errors, otherwise structured message or raw text
+            let validationMsg = null;
+            if(data && data.errors){
+              try{
+                // pick first validation message from any field
+                const vals = Object.values(data.errors).flat();
+                if(vals && vals.length) validationMsg = String(vals[0]);
+              }catch(e){ validationMsg = null; }
+            }
+            const errMsg = validationMsg || data?.message || data?.error || (resText && resText.trim()) || `${res.status} ${res.statusText}`;
+            showMsg(errMsg);
+            appendLog('error',`Server rejected bid (HTTP ${res.status}): ${errMsg}`);
+            if(typeof resText === 'string' && resText.trim() && !errMsg.includes(resText)){
+              appendLog('info', 'Server response body: ' + resText.substring(0,200));
+            }
+            return;
+          }
+
+          // assume response contains new_price and bids_count or we can fallback to amount
+          const newPrice = data.new_price ?? data.current_price ?? amount;
+          const bids = data.bids_count ?? (bidsCountEl ? Number(bidsCountEl.textContent||0)+1 : undefined);
+
+          // update UI
+          if(priceEl){ priceEl.dataset.value = newPrice; priceEl.textContent = Number(newPrice).toLocaleString() + ' AED'; }
+          if(bidsCountEl && typeof bids !== 'undefined'){ bidsCountEl.textContent = bids; }
+          // set input to next min suggested
+          bidInput.value = Number(newPrice) + minInc;
+          appendLog('success','Bid accepted: ' + newPrice + ' AED');
+          showMsg('Bid placed successfully.', false);
+          // Show user bid banner
+          try{
+            const banner = document.getElementById('user-bid-banner');
+            const bannerMsg = document.getElementById('user-bid-banner-msg');
+            const higherBtn = document.getElementById('user-bid-banner-higher');
+            if(banner && bannerMsg){
+              bannerMsg.textContent = `You\'ve bid AED ${Number(newPrice).toLocaleString()}. You can place a higher bid anytime.`;
+              banner.style.display = 'block';
+              // store last bid locally for persistence
+              localStorage.setItem('lastUserBid', String(newPrice));
+            }
+            if(higherBtn){
+              higherBtn.onclick = function(){
+                // increase input to next increment and focus
+                const minInc = Number(minEl.dataset.value || 0);
+                bidInput.value = Number(newPrice) + minInc;
+                bidInput.focus();
+              }
+            }
+          }catch(e){console.error(e)}
+        }catch(e){
+          showMsg(e.message || 'Network error');
+        }finally{
+          bidBtn.disabled = false;
+          bidBtn.textContent = prevText;
+        }
+      }
+
+      bidBtn.addEventListener('click', placeBid);
+    })();
+
+    // Load auction data from API and populate the page
+    (function(){
+      function getParam(name){
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+      }
+
+      const auctionIdParam = getParam('id') || getParam('auction_id') || document.getElementById('bid-btn')?.dataset.auctionId;
+      if(!auctionIdParam) return; // nothing to load
+
+      async function loadAuction(id){
+        try{
+          const res = await fetch(`/api/auctions/${id}/full-details`);
+          const text = await res.text();
+          let json = null;
+          try{ json = text ? JSON.parse(text) : null; }catch(e){ json = null; }
+
+          if(!res.ok){
+            const message = json?.message || text || `${res.status} ${res.statusText}`;
+            appendLog('error', `Failed to load auction ${id}: ${message}`);
+            return;
+          }
+
+          // API returns page_data.images and page_data.auction_info in fullDetails
+          const pd = json?.page_data ?? json?.data ?? json?.auction_data?.page_data ?? null;
+          const auctionInfo = pd?.auction_info ?? pd?.auction_data ?? json?.auction_data ?? null;
+
+          // populate images
+          if(pd?.images){
+            const mainUrl = pd.images.main_image;
+            const sub = pd.images.sub_images || pd.images.sub_images_urls || [];
+            const hero = document.getElementById('hero-img');
+            // helper: normalize URL to absolute so relative paths from API still work
+            function normalizeUrl(u){
+              if(!u) return null;
+              try{
+                // if absolute already
+                if(u.startsWith('http://') || u.startsWith('https://')) return u;
+                if(u.startsWith('//')) return window.location.protocol + u;
+                if(u.startsWith('/')) return window.location.origin + u;
+                // otherwise treat as relative path
+                return window.location.origin + '/' + u.replace(/^\/+/, '');
+              }catch(e){ return u; }
+            }
+
+            const fallback = 'ads_copy/1743630540_ad-details-image-1.png';
+
+            if(mainUrl && hero){
+              hero.src = normalizeUrl(mainUrl) || fallback;
+              hero.onerror = function(){ this.onerror=null; this.src=fallback; };
+            }
+
+            const thumbs = document.getElementById('thumbs');
+            if(thumbs){
+              thumbs.innerHTML = '';
+              const imgs = [mainUrl].concat(sub).filter(Boolean).slice(0,8);
+              imgs.forEach((u,i)=>{
+                const div = document.createElement('div');
+                div.className = 'thumb' + (i===0 ? ' active' : '');
+                const img = document.createElement('img');
+                const src = normalizeUrl(u) || fallback;
+                img.src = src;
+                img.onerror = function(){ this.onerror=null; this.src=fallback; };
+                div.appendChild(img);
+                div.addEventListener('click', ()=>{
+                  document.getElementById('hero-img').src = src;
+                  document.querySelectorAll('.thumb').forEach(x=>x.classList.remove('active'));
+                  div.classList.add('active');
+                });
+                thumbs.appendChild(div);
+              });
+            }
+          }
+
+          // populate price/min/bids
+          const priceEl = document.getElementById('current-price');
+          const minEl = document.getElementById('min-increment');
+          const bidsEl = document.getElementById('bids-count');
+          const bidInput = document.getElementById('bid-input');
+          const bidBtn = document.getElementById('bid-btn');
+
+          const auctionData = json?.page_data?.auction_info ?? json?.page_data ?? json?.auction_data ?? null;
+          if(auctionData){
+            const cur = auctionData.current_price ?? auctionData.current_price ?? auctionData.current_price ?? auctionData.current_price;
+            const inc = auctionData.min_increment ?? auctionData.bid_increment ?? auctionData.mini_bid_increment ?? auctionData.min_increment;
+            const totalBids = auctionData.total_bids ?? auctionData.bids_count ?? auctionData.total_bids;
+            if(priceEl && typeof cur !== 'undefined'){ priceEl.dataset.value = cur; priceEl.textContent = Number(cur).toLocaleString() + ' AED'; }
+            if(minEl && typeof inc !== 'undefined'){ minEl.dataset.value = inc; minEl.innerHTML = 'Min Increment:<br>' + inc + ' AED'; }
+            if(bidsEl && typeof totalBids !== 'undefined'){ bidsEl.textContent = totalBids; }
+            if(bidInput && typeof cur !== 'undefined' && typeof inc !== 'undefined'){ bidInput.value = Number(cur) + Number(inc); }
+            if(bidBtn) bidBtn.dataset.auctionId = id;
+
+            // countdown: if API provided remaining_time.total_seconds set endTime accordingly
+            if(json?.page_data?.auction_info?.remaining_time?.total_seconds){
+              const secs = json.page_data.auction_info.remaining_time.total_seconds;
+              const el = document.getElementById('countdown');
+              if(el){
+                // set data-end in ISO by adding secs
+                const end = new Date(Date.now() + secs * 1000);
+                el.setAttribute('data-end', end.toISOString());
+              }
+            }
+          }
+
+          appendLog('info', `Loaded auction ${id}`);
+        }catch(e){
+          appendLog('error', `Error loading auction ${id}: ${e.message}`);
+        }
+      }
+
+      loadAuction(auctionIdParam);
+      // restore banner if user bid recently
+      try{
+        const last = localStorage.getItem('lastUserBid');
+        if(last){
+          const banner = document.getElementById('user-bid-banner');
+          const bannerMsg = document.getElementById('user-bid-banner-msg');
+          if(banner && bannerMsg){
+            bannerMsg.textContent = `You\'ve bid AED ${Number(last).toLocaleString()}. You can place a higher bid anytime.`;
+            banner.style.display = 'block';
+          }
+        }
+        const closeBtn = document.getElementById('user-bid-banner-close');
+        if(closeBtn){ closeBtn.addEventListener('click', ()=>{ document.getElementById('user-bid-banner').style.display='none'; }); }
+      }catch(e){ }
+    })();
+  </script>
+</body>
+</html>

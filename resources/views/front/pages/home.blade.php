@@ -24,7 +24,7 @@
             <a href="https://motors.azsystems.tech/" class="btn btn-primary btn-lg">List Your Car / Login</a>
         </div>
         <div class="col-md-6 text-center">
-            <img src="https://images.unsplash.com/photo-1542362567-b07e54358753?w=1200&q=80&auto=format&fit=crop" alt="Cars" class="img-fluid rounded" style="max-height:320px;">
+            <img src="/favicon.ico" alt="Cars" class="img-fluid rounded" style="max-height:320px;">
         </div>
     </div>
 
@@ -51,7 +51,7 @@
     <div class="row g-3">
         <div class="col-sm-6 col-md-4">
             <div class="card">
-                <img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80&auto=format&fit=crop" class="card-img-top" alt="Car 1">
+                <img src="/favicon.ico" class="card-img-top" alt="Car 1">
                 <div class="card-body">
                     <h5 class="card-title">2018 Compact Sedan</h5>
                     <p class="card-text">Well-maintained, low mileage.</p>
@@ -60,7 +60,7 @@
         </div>
         <div class="col-sm-6 col-md-4">
             <div class="card">
-                <img src="https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=800&q=80&auto=format&fit=crop" class="card-img-top" alt="Car 2">
+                <img src="/favicon.ico" class="card-img-top" alt="Car 2">
                 <div class="card-body">
                     <h5 class="card-title">2019 SUV</h5>
                     <p class="card-text">Spacious SUV in excellent condition.</p>
@@ -69,7 +69,7 @@
         </div>
         <div class="col-sm-6 col-md-4">
             <div class="card">
-                <img src="https://images.unsplash.com/photo-1511390461-32e8d7f6b2a6?w=800&q=80&auto=format&fit=crop" class="card-img-top" alt="Car 3">
+                <img src="/favicon.ico" class="card-img-top" alt="Car 3">
                 <div class="card-body">
                     <h5 class="card-title">2017 Coupe</h5>
                     <p class="card-text">Sporty coupe with clean history.</p>

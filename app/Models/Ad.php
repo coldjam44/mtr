@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\CarModel;
 use App\Models\Country;
-use App\Models\city;
+use App\Models\City;
 use App\Models\Userauth;
 use App\Models\Category;
 use App\Models\AdImage;

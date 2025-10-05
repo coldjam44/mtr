@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auction Test Page</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #fff; }
+        #auctions { max-width: 1000px; margin: 20px auto; }
+        .bid-box { display:flex; align-items:center; border:1px solid #e6e6e6; border-radius:8px; padding:12px; margin:12px 0; box-shadow:0 1px 4px rgba(0,0,0,0.03); }
+        .box-left { width:160px; }
+        .thumb { width:150px; height:100px; object-fit:cover; border-radius:6px; }
+        .box-center { flex:1; padding:0 16px; }
+        .lot { font-size:12px; color:#8a8a8a; }
+        .title { font-weight:600; margin:6px 0; }
+        .meta-row { display:flex; gap:12px; color:#666; font-size:13px; }
+        .box-right { width:180px; text-align:right; }
+        .price { font-size:20px; color:#0a58ca; font-weight:700; }
+        .bid-btn { margin-top:8px; background:#0747a6; color:#fff; border:none; padding:10px 14px; border-radius:6px; cursor:pointer; }
+        .seller .avatar { width:30px; height:30px; border-radius:50%; vertical-align:middle; margin-right:6px; }
+        pre#debug { display:block; }
+    </style>
+</head>
+<body>
+    <div style="max-width:1000px;margin:10px auto;display:flex;gap:8px;align-items:center;">
+        <input id="token-input" placeholder="Paste JWT token here (for placing bids)" style="flex:1;padding:8px;border:1px solid #ccc;border-radius:6px;">
+        <button id="save-token" style="padding:8px;border-radius:6px;background:#0747a6;color:#fff;border:none;cursor:pointer;">Save Token</button>
+        <button id="clear-token" style="padding:8px;border-radius:6px;background:#777;color:#fff;border:none;cursor:pointer;margin-left:6px;">Clear</button>
+        <button id="show-token" style="padding:8px;border-radius:6px;background:#0a8a0a;color:#fff;border:none;cursor:pointer;margin-left:6px;">Show Token</button>
+        <button id="get-bidder-token" style="padding:8px;border-radius:6px;background:#0066cc;color:#fff;border:none;cursor:pointer;margin-left:6px;">Get Bidder Token</button>
+    </div>
+    <div style="max-width:1000px;margin:6px auto;display:flex;gap:8px;align-items:center;">
+        <div id="pusher-status" style="flex:0 0 auto;padding:8px 12px;border-radius:6px;background:#f0f0f0;color:#333;border:1px solid #ddd;font-weight:600">Pusher: connecting...</div>
+        <div style="flex:1"></div>
+    </div>
+    <div id="auctions"></div>
+    <pre id="debug" style="background:#111;color:#0f0;padding:10px;margin-top:20px;max-height:200px;overflow:auto;"></pre>
+    <div id="toast" style="position:fixed;right:20px;bottom:20px;min-width:220px;max-width:320px;z-index:9999;pointer-events:none;"></div>
+
+    <script>
+        function debug(msg) {
+            const el = document.getElementById('debug');
+            if (el) {
+                // keep debug size reasonable
+                el.textContent = (el.textContent || '').split('\n').slice(-200).join('\n') + '\n' + msg + '\n';
+            }
+            console.log(msg);
+        }
+
+        function toast(message, timeout = 4000) {
+            const t = document.createElement('div');
+            t.style.background = '#222';
+            t.style.color = '#fff';
+            t.style.padding = '10px 12px';
+            t.style.marginTop = '8px';
+            t.style.borderRadius = '6px';
+            t.style.boxShadow = '0 4px 10px rgba(0,0,0,0.2)';
+            t.style.pointerEvents = 'auto';
+            t.textContent = message;
+            const holder = document.getElementById('toast');
+            holder.appendChild(t);
+            setTimeout(() => { t.style.opacity = '0'; setTimeout(()=>t.remove(), 400); }, timeout);
+        }
+
+    // JWT token (set by user via the UI)
+    let token = '';
+
+        // Initialize Pusher safely and log status
+        let pusher;
+        try {
+            pusher = new Pusher('5baf567dab56569882b8', {
+                cluster: 'ap2',
+                forceTLS: true,
+                enabledTransports: ['ws', 'wss']
+            });
+            debug('Pusher initialized');
+        } catch (err) {
+            debug('Pusher init error: ' + (err && err.message ? err.message : String(err)));
+        }
+
+        // Connection state UI
+        function setPusherStatus(text, bg) {
+            const el = document.getElementById('pusher-status');
+            if (!el) return;
+            el.textContent = 'Pusher: ' + text;
+            if (bg) el.style.background = bg;
+        }
+        if (pusher) {
+            pusher.connection.bind('connecting', function() { debug('Pusher: connecting'); setPusherStatus('connecting', '#fff9c4'); });
+            pusher.connection.bind('connected', function() { debug('Pusher: connected'); setPusherStatus('connected', '#e6ffed'); });
+            pusher.connection.bind('unavailable', function() { debug('Pusher: unavailable'); setPusherStatus('unavailable', '#ffdede'); });
+            pusher.connection.bind('failed', function() { debug('Pusher: failed'); setPusherStatus('failed', '#ffdede'); });
+            pusher.connection.bind('disconnected', function() { debug('Pusher: disconnected'); setPusherStatus('disconnected', '#f5f5f5'); });
+        }
+
+        // Helper functions (formatting + countdown)
+        function formatPrice(val) {
+            const n = Number(val || 0);
+            return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatRemaining(rem) {
+            if (!rem) return 'N/A';
+            if (rem.expired) return 'Expired';
+            if (typeof rem === 'number') {
+                // seconds
+                const t = rem;
+                const days = Math.floor(t / 86400);
+                const hours = Math.floor((t % 86400) / 3600);
+                const minutes = Math.floor((t % 3600) / 60);
+                return `${days}d ${hours}h:${minutes}m`;
+            }
+            const d = rem.days || 0;
+            const h = rem.hours || 0;
+            const m = rem.minutes || 0;
+            return `${d}d ${h}h:${m}m`;
+        }
+
+        const countdowns = {};
+        function startCountdown(id, totalSeconds) {
+            const elId = `end-${id}`;
+            if (countdowns[id]) clearInterval(countdowns[id]);
+            let t = Number(totalSeconds) || 0;
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const tick = () => {
+                if (t <= 0) {
+                    el.textContent = 'Expired';
+                    clearInterval(countdowns[id]);
+                    return;
+                }
+                const days = Math.floor(t / 86400);
+                const hours = Math.floor((t % 86400) / 3600);
+                const minutes = Math.floor((t % 3600) / 60);
+                const seconds = Math.floor(t % 60);
+                el.textContent = `${days}d ${String(hours).padStart(2,'0')}h:${String(minutes).padStart(2,'0')}m:${String(seconds).padStart(2,'0')}s`;
+                t -= 1;
+            };
+            tick();
+            countdowns[id] = setInterval(tick, 1000);
+        }
+
+        // Token save/clear handlers
+        document.addEventListener('DOMContentLoaded', function() {
+            const saveBtn = document.getElementById('save-token');
+            const clearBtn = document.getElementById('clear-token');
+            const input = document.getElementById('token-input');
+            saveBtn.addEventListener('click', function() {
+                token = input.value.trim();
+                debug('Token saved: ' + (token ? ('[length ' + token.length + ']') : 'empty'));
+            });
+            clearBtn.addEventListener('click', function() {
+                token = '';
+                input.value = '';
+                debug('Token cleared');
+            });
+            const showBtn = document.getElementById('show-token');
+            showBtn.addEventListener('click', function() {
+                if (!token) return alert('No token saved. Paste it in the input and click Save Token first.');
+                try {
+                    // store token in localStorage for the viewer page
+                    localStorage.setItem('testAuctionToken', token);
+                    window.open('/show-token.html', '_blank', 'noopener');
+                } catch (err) {
+                    debug('Error opening token viewer: ' + (err && err.message ? err.message : String(err)));
+                    alert('Unable to open token viewer: ' + (err && err.message ? err.message : String(err)));
+                }
+            });
+            const getBidderBtn = document.getElementById('get-bidder-token');
+            getBidderBtn.addEventListener('click', async function() {
+                debug('Requesting bidder token...');
+                try {
+                    const res = await fetch('https://testsites.azsystems.tech/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ email: 'test.bidder@example.com', password: 'Test1234' })
+                    });
+                    const body = await res.json();
+                    debug('Login response status: ' + res.status);
+                    if (res.ok && body.token) {
+                        token = body.token;
+                        document.getElementById('token-input').value = token;
+                        // save to localStorage and open token viewer page
+                        try { localStorage.setItem('testAuctionToken', token); } catch(e){}
+                        debug('Bidder token received (length ' + token.length + ')');
+                        window.open('/show-token.html', '_blank', 'noopener');
+                    } else {
+                        debug('Login failed: ' + JSON.stringify(body));
+                        alert('Failed to get bidder token: ' + (body.message || JSON.stringify(body)));
+                    }
+                } catch (err) {
+                    debug('Error requesting bidder token: ' + (err && err.message ? err.message : String(err)));
+                    alert('Error requesting bidder token: ' + (err && err.message ? err.message : String(err)));
+                }
+            });
+        });
+
+    // Fetch and display active auctions
+        async function loadAuctions() {
+            try {
+                // Only send Authorization header if token has been replaced
+                const headers = { 'Accept': 'application/json' };
+                if (token && token !== 'YOUR_JWT_TOKEN_HERE') {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+
+                const response = await fetch('https://testsites.azsystems.tech/api/auctions/active', { headers });
+                debug('Fetch /api/auctions/active status: ' + response.status + ' ' + response.statusText);
+                let payload;
+                try {
+                    payload = await response.json();
+                } catch (e) {
+                    const text = await response.text();
+                    debug('Failed to parse JSON, raw response:\n' + text.slice(0,2000));
+                    throw e;
+                }
+                debug('API payload: ' + JSON.stringify(payload).slice(0,2000));
+
+                const list = Array.isArray(payload) ? payload : (payload.data || []);
+
+                const container = document.getElementById('auctions');
+                container.innerHTML = '';
+
+                if (!list || list.length === 0) {
+                    debug('No auctions returned by API (list length 0)');
+                }
+
+                list.forEach(auction => {
+                    // adapt to returned fields
+                    const id = auction.auction_id || auction.id;
+                    const currentPrice = auction.current_price || auction.current_highest_bid || '0.00';
+                    const title = auction.title || (auction.ad && auction.ad.title) || 'Untitled';
+                    const lot = auction.lot_number || '';
+                    const image = auction.main_image || (auction.ad && auction.ad.main_image_url) || '';
+                    const bidsCount = auction.bids_count || auction.total_bids || 0;
+                    const sellerAvatar = auction.seller_avatar || '';
+                    const remaining = auction.remaining_time || { total_seconds: 0 };
+
+                    const box = document.createElement('div');
+                    box.className = 'bid-box';
+                    box.setAttribute('data-auction-id','${id}');
+                    box.innerHTML = `
+                        <div class="box-left">
+                            <img src="${image}" alt="thumb" class="thumb">
+                        </div>
+                        <div class="box-center">
+                            <div class="lot">${lot}</div>
+                            <div class="title">${title}</div>
+                            <div class="meta-row">
+                                <div class="end">Ends in: <span id="end-${id}">${formatRemaining(remaining)}</span></div>
+                                <div class="bcount">Bids: ${bidsCount}</div>
+                            </div>
+                        </div>
+                        <div class="box-right">
+                            <div class="price"><span id="price-${id}">${formatPrice(currentPrice)}</span> <span class="currency">AED</span></div>
+                            <button class="bid-btn" onclick="openDetail(${id})">Bid Now</button>
+                        </div>
+                    `;
+                    container.appendChild(box);
+
+                    // start countdown for this auction
+                    startCountdown(id, remaining.total_seconds || 0);
+
+                    // Subscribe to auction channel for live updates
+                    subscribeToAuction(id);
+                });
+            } catch (error) {
+                console.error('Error loading auctions:', error);
+            }
+        }
+
+        // Subscribe to auction channel
+        // Track subscribed channels to avoid double-subscribing
+        const _subscribed = {};
+        function subscribeToAuction(auctionId) {
+            if (!pusher) return debug('Pusher not initialized, cannot subscribe to ' + auctionId);
+            if (_subscribed[auctionId]) return; // already subscribed
+            try {
+                const name = `auction.${auctionId}`;
+                const channel = pusher.subscribe(name);
+                channel.bind('new.bid', function(data) {
+                    debug('New bid event received for ' + auctionId + ': ' + JSON.stringify(data));
+                    toast(`Auction ${auctionId}: new bid ${Number(data.bid_amount).toFixed(2)} AED`);
+                    // Update the price span if exists
+                    const priceEl = document.getElementById(`price-${auctionId}`);
+                    if (priceEl) priceEl.textContent = Number(data.bid_amount).toFixed(2);
+                    // update cache
+                    try { updateAuctionCacheFromPusher(auctionId, data.bid_amount); } catch(e){}
+                    // Also update any .price inside the bid-box
+                    const box = document.querySelector(`.bid-box[data-auction-id="${auctionId}"]`);
+                    if (box) {
+                        const p = box.querySelector('.price');
+                        if (p) p.querySelector('#price-' + auctionId) && (p.querySelector('#price-' + auctionId).textContent = Number(data.bid_amount).toFixed(2));
+                    }
+                });
+                // Additional event hook for general auction updates
+                channel.bind('auction.update', function(payload) {
+                    debug('Auction.update received for ' + auctionId + ': ' + JSON.stringify(payload));
+                    toast(`Auction ${auctionId}: update`);
+                    // If payload contains new price or remaining seconds, update UI
+                    if (payload.bid_amount) {
+                        const priceEl2 = document.getElementById(`price-${auctionId}`);
+                        if (priceEl2) priceEl2.textContent = Number(payload.bid_amount).toFixed(2);
+                    }
+                    if (payload.remaining_seconds) {
+                        startCountdown(auctionId, Number(payload.remaining_seconds));
+                    }
+                });
+                _subscribed[auctionId] = true;
+                debug('Subscribed to channel ' + name);
+            } catch (err) {
+                debug('Pusher subscribe error: ' + (err && err.message ? err.message : String(err)));
+            }
+        }
+
+        // Cleanup subscriptions on unload
+        window.addEventListener('beforeunload', function() {
+            try {
+                Object.keys(_subscribed).forEach(id => {
+                    try { pusher.unsubscribe(`auction.${id}`); } catch(e){}
+                });
+            } catch(e){}
+        });
+
+        // Place a bid with client-side validation against auction rules
+        // Use cached Pusher updates when possible and prefer full-details endpoint for increment info
+        const auctionCache = {};
+
+        function updateAuctionCacheFromPusher(auctionId, bidAmount) {
+            auctionCache[auctionId] = auctionCache[auctionId] || {};
+            auctionCache[auctionId].current = Number(bidAmount) || auctionCache[auctionId].current || 0;
+        }
+
+        async function placeBid(auctionId) {
+            // First try full-details endpoint (contains min_increment and next_minimum_bid)
+            let auctionDetails = null;
+            try {
+                const res = await fetch(`https://testsites.azsystems.tech/api/auctions/${auctionId}/full-details`, { headers: { 'Accept': 'application/json' } });
+                if (res.ok) {
+                    try { auctionDetails = await res.json(); } catch(e) { auctionDetails = null; }
+                } else {
+                    debug('full-details not available, status: ' + res.status + ', will try show endpoint');
+                    const r2 = await fetch(`https://testsites.azsystems.tech/api/auctions/${auctionId}`, { headers: { 'Accept': 'application/json' } });
+                    if (r2.ok) {
+                        try { auctionDetails = await r2.json(); } catch(e) { auctionDetails = null; }
+                    } else {
+                        debug('Failed to fetch auction details, status: ' + r2.status);
+                    }
+                }
+            } catch (err) {
+                debug('Error fetching auction details: ' + (err && err.message ? err.message : String(err)));
+            }
+
+            // Resolve current price and increment defensively
+            let current = null;
+            let increment = null;
+            if (auctionDetails) {
+                if (auctionDetails.page_data && auctionDetails.page_data.auction_info) {
+                    current = Number(auctionDetails.page_data.auction_info.current_price || auctionDetails.page_data.auction_info.current_price);
+                    increment = Number(auctionDetails.page_data.auction_info.min_increment || auctionDetails.page_data.auction_info.min_increment || auctionDetails.page_data.auction_info.min_increment);
+                }
+                if ((current === null || isNaN(current)) && auctionDetails.auction_data) {
+                    current = Number(auctionDetails.auction_data.current_highest_bid || auctionDetails.auction_data.current_price);
+                }
+                if ((increment === null || isNaN(increment)) && auctionDetails.auction_data) {
+                    increment = Number(auctionDetails.auction_data.mini_bid_increment || auctionDetails.auction_data.min_increment || auctionDetails.auction_data.bid_increment || auctionDetails.page_data?.auction_info?.min_increment);
+                }
+            }
+
+            // Fallback to Pusher-updated cache then DOM
+            if ((current === null || isNaN(current)) && auctionCache[auctionId] && auctionCache[auctionId].current) {
+                current = auctionCache[auctionId].current;
+            }
+            const priceEl = document.getElementById(`price-${auctionId}`);
+            if ((current === null || isNaN(current)) && priceEl) {
+                current = parseFloat(priceEl.textContent.replace(/[^0-9.-]+/g, '')) || 0;
+            }
+
+            // Prefer safer default increment when missing
+            increment = Number(increment) || 100;
+            current = Number(current) || 0;
+
+            const minimumBid = +(current + increment);
+
+            // Try to read an input if present, otherwise prompt the user (prefill with minimum)
+            let bidAmount = null;
+            const input = document.getElementById(`bid-${auctionId}`);
+            if (input) bidAmount = input.value;
+            if (!bidAmount) {
+                bidAmount = prompt(`Enter your bid amount (minimum: ${minimumBid}).`, String(minimumBid));
+            }
+            if (!bidAmount) return debug('Bid cancelled or empty');
+            bidAmount = parseFloat(bidAmount);
+            if (isNaN(bidAmount)) return alert('قيمة المزايدة غير صالحة');
+
+            // Client-side validation: minimum
+            if (bidAmount < minimumBid) {
+                return alert('المبلغ يجب أن يكون على الأقل ' + minimumBid);
+            }
+
+            // Client-side validation: must be multiple of increment
+            const diff = +(bidAmount - current);
+            const diffInt = Math.round(diff * 100);
+            const incInt = Math.round(increment * 100);
+            if (incInt > 0 && diffInt % incInt !== 0) {
+                const allowedExampleNext = minimumBid;
+                return alert('قيمة المزايدة يجب أن تكون بمضاعفات الزيادة المحددة. مثال للقيمة التالية المقبولة: ' + allowedExampleNext);
+            }
+
+            // All client validations passed — send the request
+            try {
+                const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                if (token && token !== 'YOUR_JWT_TOKEN_HERE') headers['Authorization'] = `Bearer ${token}`;
+                debug(`Placing bid ${bidAmount} on auction ${auctionId}`);
+                const response = await fetch(`https://testsites.azsystems.tech/api/auctions/${auctionId}/bid`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ bid_amount: bidAmount })
+                });
+                debug('Bid response status: ' + response.status);
+                const resultText = await response.text();
+                let result;
+                try { result = JSON.parse(resultText); } catch(e) { result = { raw: resultText }; }
+                debug('Bid response: ' + JSON.stringify(result).slice(0,1000));
+                if (response.ok) {
+                    alert('تمت المزايدة بنجاح');
+                    // update UI price
+                    const priceEl2 = document.getElementById(`price-${auctionId}`);
+                    if (priceEl2) priceEl2.textContent = Number(bidAmount).toFixed(2);
+                    const box = document.querySelector(`.bid-box[data-auction-id="${auctionId}"]`);
+                    if (box) {
+                        const p = box.querySelector('.price');
+                        if (p) p.querySelector('#price-' + auctionId) && (p.querySelector('#price-' + auctionId).textContent = Number(bidAmount).toFixed(2));
+                    }
+                } else {
+                    const msg = result && result.message ? result.message : (result.raw || 'Unknown error');
+                    // If server returned minimum_bid, offer retry with that amount
+                    if (response.status === 400 && result && typeof result.minimum_bid !== 'undefined') {
+                        const serverMin = Number(result.minimum_bid);
+                        const retry = confirm('حدث خطأ: ' + (result.message || msg) + '\nهل تريد إعادة المحاولة بالقيمة الدنيا التالية: ' + serverMin + ' ؟');
+                        if (retry) {
+                            // recursive retry with serverMin
+                            return placeBidWithAmount(auctionId, serverMin);
+                        }
+                    }
+                    alert('Error placing bid: ' + msg);
+                }
+            } catch (error) {
+                debug('Error placing bid: ' + (error && error.message ? error.message : String(error)));
+            }
+        }
+
+        // Helper to place bid programmatically (used when retrying with server-provided minimum)
+        async function placeBidWithAmount(auctionId, bidAmount) {
+            try {
+                const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+                if (token && token !== 'YOUR_JWT_TOKEN_HERE') headers['Authorization'] = `Bearer ${token}`;
+                debug(`Retry placing bid ${bidAmount} on auction ${auctionId}`);
+                const response = await fetch(`https://testsites.azsystems.tech/api/auctions/${auctionId}/bid`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ bid_amount: bidAmount })
+                });
+                debug('Bid response status: ' + response.status);
+                const resultText = await response.text();
+                let result;
+                try { result = JSON.parse(resultText); } catch(e) { result = { raw: resultText }; }
+                debug('Bid response: ' + JSON.stringify(result).slice(0,1000));
+                if (response.ok) {
+                    alert('تمت المزايدة بنجاح');
+                    const priceEl2 = document.getElementById(`price-${auctionId}`);
+                    if (priceEl2) priceEl2.textContent = Number(bidAmount).toFixed(2);
+                } else {
+                    const msg = result && result.message ? result.message : (result.raw || 'Unknown error');
+                    alert('Error placing bid: ' + msg);
+                }
+            } catch (error) {
+                debug('Error placing bid: ' + (error && error.message ? error.message : String(error)));
+            }
+        }
+
+        // Load auctions on page load
+        loadAuctions();
+
+        function openDetail(auctionId) {
+            // Open the simplified detail page (no header/footer, no filters)
+            const url = `/auction-detail.html?id=${auctionId}`;
+            window.open(url, '_blank', 'noopener');
+        }
+    </script>
+</body>
+</html>

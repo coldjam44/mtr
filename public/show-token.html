@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Show Token</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;margin:0;padding:24px}
+    .card{max-width:760px;margin:24px auto;background:#fff;padding:18px;border-radius:8px;box-shadow:0 6px 18px rgba(20,20,30,0.06)}
+    textarea{width:100%;height:160px;padding:12px;font-family:monospace;font-size:13px}
+    .row{display:flex;gap:8px;margin-top:12px}
+    button{padding:10px 12px;border-radius:6px;border:0;cursor:pointer}
+    .primary{background:#0b63d4;color:#fff}
+    .muted{background:#e6eef8;color:#0b63d4}
+    .small{font-size:13px;color:#666;margin-top:8px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Saved Test Bidder Token</h2>
+    <p class="small">This page reads the token saved by the test auction page. You can copy it to clipboard. Each copy tap is recorded ("traket taps").</p>
+    <textarea id="tokenArea" placeholder="No token found."></textarea>
+    <div class="row">
+      <button id="copyBtn" class="primary">Copy Token</button>
+      <button id="clearBtn" class="muted">Clear Token</button>
+      <button id="closeBtn">Close</button>
+    </div>
+    <p class="small">Traket taps (copy count): <span id="tapCount">0</span></p>
+  </div>
+
+  <script>
+    function $(id){return document.getElementById(id)}
+    const area = $('tokenArea');
+    const copyBtn = $('copyBtn');
+    const clearBtn = $('clearBtn');
+    const closeBtn = $('closeBtn');
+    const tapCountEl = $('tapCount');
+
+    // Load token from localStorage
+    let token = null;
+    try{
+      token = localStorage.getItem('testAuctionToken');
+      if(token) area.value = token;
+    }catch(e){ console.error('localStorage read error', e); }
+
+    // Load tap count
+    let taps = 0;
+    try{
+      taps = parseInt(localStorage.getItem('testAuctionToken_copy_count')||'0',10) || 0;
+      tapCountEl.textContent = taps;
+    }catch(e){ console.error('read taps', e); }
+
+    copyBtn.addEventListener('click', function(){
+      try{
+        const val = area.value.trim();
+        if(!val){ alert('No token to copy'); return; }
+        navigator.clipboard.writeText(val).then(function(){
+          taps = (taps||0) + 1;
+          try{ localStorage.setItem('testAuctionToken_copy_count', String(taps)); }catch(e){}
+          tapCountEl.textContent = taps;
+          alert('Token copied to clipboard');
+        }, function(err){
+          // fallback
+          area.select();
+          document.execCommand('copy');
+          taps = (taps||0) + 1;
+          try{ localStorage.setItem('testAuctionToken_copy_count', String(taps)); }catch(e){}
+          tapCountEl.textContent = taps;
+          alert('Token copied to clipboard (fallback)');
+        });
+      }catch(err){
+        console.error('copy err', err);
+        alert('Copy failed: ' + (err && err.message ? err.message : String(err)));
+      }
+    });
+
+    clearBtn.addEventListener('click', function(){
+      if(confirm('Clear saved token and counters?')){
+        try{ localStorage.removeItem('testAuctionToken'); localStorage.removeItem('testAuctionToken_copy_count'); }catch(e){}
+        area.value = '';
+        taps = 0; tapCountEl.textContent = taps;
+        alert('Cleared');
+      }
+    });
+
+    closeBtn.addEventListener('click', function(){ window.close(); });
+  </script>
+</body>
+</html>
